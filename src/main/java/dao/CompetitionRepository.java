@@ -1,7 +1,7 @@
 package dao;
 
 import Entites.Competition;
-import Entites.Cours;
+//
 import Entites.Membre;
 import org.springframework.data.repository.CrudRepository;
 
