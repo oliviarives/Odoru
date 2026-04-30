@@ -1,4 +1,4 @@
-package Entites;
+package Enum;
 
 public enum EtatInscription {
     ACTIVE,
