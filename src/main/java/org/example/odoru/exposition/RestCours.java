@@ -23,7 +23,7 @@ public class RestCours {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ENSEIGNANT')")
+    @PreAuthorize("hasAnyRole('ENSEIGNANT','PRESIDENT')")
     public ResponseEntity<CoursExport> planifier(
             @RequestBody CoursImport coursImport,
             @AuthenticationPrincipal MembreDetails enseignant) {

@@ -1,0 +1,164 @@
+@startuml UC17a_StatsCoursPresences
+title UC17a – VisualiserStats : Cours + présences moyennes
+
+actor "Président" as PRES
+participant "CallMe App" as App
+participant ":StatsController" as C
+participant ":StatsService" as S
+participant ":CoursRepository" as CR
+participant ":PresenceRepository" as PR
+database "Base de données" as DB
+
+PRES -> App : Consulte les statistiques globales des cours
+App -> C : GET /api/stats/cours\nHeader: Authorization: Bearer <token>
+C -> C : verifierToken(token)
+C -> C : verifierRole(PRESIDENT)
+
+alt Rôle insuffisant
+  C --> App : 403 Forbidden
+  App --> PRES : "Accès réservé au Président"
+else Rôle autorisé
+  C -> S : getStatsCours()
+
+  S -> CR : count()
+  CR -> DB : SELECT COUNT(*) FROM cours
+  DB --> CR : nbCours
+  CR --> S : nbCours
+
+  S -> PR : countPresencesParCours()
+  PR -> DB : SELECT cours_id, COUNT(*)\nFROM presence GROUP BY cours_id
+  DB --> PR : présences par cours
+  PR --> S : Map<coursId, nbPresents>
+
+  S -> S : calculerMoyenne(présences)
+  S --> C : {nbCours, moyenneElevesPresents,\ncours: [{coursId, titre, nbPresents}, ...]}
+  C --> App : 200 OK
+  App --> PRES : Affiche les statistiques des cours
+end
+
+@enduml
+
+' ─────────────────────────────────────────────
+
+@startuml UC17b_StatsCoursEleve
+title UC17b – VisualiserStats : Cours d'un élève (présences/absences)
+
+actor "Président" as PRES
+participant "CallMe App" as App
+participant ":StatsController" as C
+participant ":StatsService" as S
+participant ":MembreRepository" as MR
+participant ":PresenceRepository" as PR
+database "Base de données" as DB
+
+PRES -> App : Consulte les cours d'un élève donné
+App -> C : GET /api/stats/membres/{id}/cours\nQuery (opt): dateDebut, dateFin
+C -> C : verifierToken(token)
+C -> C : verifierRole(PRESIDENT)
+
+alt Rôle insuffisant
+  C --> App : 403 Forbidden
+  App --> PRES : "Accès réservé au Président"
+else Rôle autorisé
+  C -> S : getCoursEleve(id, dateDebut, dateFin)
+
+  S -> MR : findById(id)
+  MR -> DB : SELECT * FROM membre WHERE id=?
+  DB --> MR : Membre ou null
+  MR --> S : Optional<Membre>
+  alt Élève non trouvé
+    S --> C : throws MembreNotFoundException
+    C --> App : 404 Not Found
+    App --> PRES : "Élève introuvable"
+  else Élève trouvé
+    note right of S : Cours du niveau de l'élève (inscrits de facto)\ncroisés avec ses présences enregistrées
+    S -> PR : findCoursAvecPresence(id, dateDebut, dateFin)
+    PR -> DB : SELECT c.*, (présence existe?) AS present\nFROM cours c LEFT JOIN presence p ...
+    DB --> PR : cours + indicateur présence
+    PR --> S : List<CoursPresence>
+    S --> C : [{coursId, titre, dateDebut, present: true/false}, ...]
+    C --> App : 200 OK
+    App --> PRES : Affiche cours avec présences/absences
+  end
+end
+
+@enduml
+
+' ─────────────────────────────────────────────
+
+@startuml UC17c_StatsCompetitionsNiveau
+title UC17c – VisualiserStats : Compétitions par niveau
+
+actor "Président" as PRES
+participant "CallMe App" as App
+participant ":StatsController" as C
+participant ":StatsService" as S
+participant ":CompetitionRepository" as CR
+database "Base de données" as DB
+
+PRES -> App : Consulte le nombre de compétitions d'un niveau
+App -> C : GET /api/stats/competitions?niveauCible={niveau}
+C -> C : verifierToken(token)
+C -> C : verifierRole(PRESIDENT)
+
+alt Rôle insuffisant
+  C --> App : 403 Forbidden
+  App --> PRES : "Accès réservé au Président"
+else Rôle autorisé
+  C -> S : getStatsCompetitions(niveauCible)
+  S -> CR : findByNiveauCible(niveauCible)
+  CR -> DB : SELECT * FROM competition WHERE niveauCible=?
+  DB --> CR : Liste de compétitions
+  CR --> S : List<Competition>
+  S -> S : compter(competitions)
+  S --> C : {niveauCible, nbCompetitions,\ncompetitions: [{competitionId, titre, dateDebut}, ...]}
+  C --> App : 200 OK
+  App --> PRES : Affiche les compétitions du niveau
+end
+
+@enduml
+
+' ─────────────────────────────────────────────
+
+@startuml UC17d_StatsCompetitionsEleve
+title UC17d – VisualiserStats : Compétitions d'un élève (résultats)
+
+actor "Président" as PRES
+participant "CallMe App" as App
+participant ":StatsController" as C
+participant ":StatsService" as S
+participant ":MembreRepository" as MR
+participant ":ResultatRepository" as RR
+database "Base de données" as DB
+
+PRES -> App : Consulte les compétitions d'un élève donné
+App -> C : GET /api/stats/membres/{id}/competitions\nQuery (opt): dateDebut, dateFin
+C -> C : verifierToken(token)
+C -> C : verifierRole(PRESIDENT)
+
+alt Rôle insuffisant
+  C --> App : 403 Forbidden
+  App --> PRES : "Accès réservé au Président"
+else Rôle autorisé
+  C -> S : getCompetitionsEleve(id, dateDebut, dateFin)
+
+  S -> MR : findById(id)
+  MR -> DB : SELECT * FROM membre WHERE id=?
+  DB --> MR : Membre ou null
+  MR --> S : Optional<Membre>
+  alt Élève non trouvé
+    S --> C : throws MembreNotFoundException
+    C --> App : 404 Not Found
+    App --> PRES : "Élève introuvable"
+  else Élève trouvé
+    S -> RR : findByMembreId(id, dateDebut, dateFin)
+    RR -> DB : SELECT r.*, c.titre, c.dateDebut\nFROM resultat_competition r\nJOIN competition c ... WHERE r.membre_id=?
+    DB --> RR : Liste de résultats
+    RR --> S : List<ResultatCompetition>
+    S --> C : [{competitionId, titre, dateDebut, note}, ...]
+    C --> App : 200 OK
+    App --> PRES : Affiche les compétitions et résultats de l'élève
+  end
+end
+
+@enduml

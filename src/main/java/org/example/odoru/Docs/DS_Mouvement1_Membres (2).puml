@@ -1,0 +1,341 @@
+@startuml UC01_CreerCompte
+title UC01 – CréerCompte
+
+actor "Utilisateur" as U
+participant "CallMe App" as App
+participant ":MembreController" as C
+participant ":MembreService" as S
+participant ":MembreRepository" as R
+database "Base de données" as DB
+
+U -> App : Saisit (nom, prenom, email,\nusername, password, ville, pays)
+App -> C : POST /api/membres\n{body: MembreDTO}
+C -> S : creerCompte(MembreDTO)
+
+S -> R : existsByUsername(username)
+R -> DB : SELECT COUNT(*) WHERE username=?
+DB --> R : résultat
+R --> S : boolean
+
+alt username déjà existant
+  S --> C : throws UsernameAlreadyExistsException
+  C --> App : 409 Conflict
+  App --> U : "Nom d'utilisateur déjà utilisé"
+else username disponible
+  S -> R : existsByEmail(email)
+  R -> DB : SELECT COUNT(*) WHERE email=?
+  DB --> R : résultat
+  R --> S : boolean
+
+  alt email déjà existant
+    S --> C : throws EmailAlreadyExistsException
+    C --> App : 409 Conflict
+    App --> U : "Email déjà utilisé"
+  else email disponible
+    S -> S : hashPassword(password)
+    S -> R : save(Membre)
+    R -> DB : INSERT INTO membre
+    DB --> R : Membre persisté
+    R --> S : Membre
+    S --> C : MembreDTO (id, username, email)
+    C --> App : 201 Created
+    App --> U : Compte créé avec succès
+  end
+end
+
+@enduml
+
+' ─────────────────────────────────────────────
+
+@startuml UC02_ConnecterCompte
+title UC02 – ConnecterCompte
+
+actor "Utilisateur" as U
+participant "CallMe App" as App
+participant ":AuthController" as C
+participant ":AuthService" as S
+participant ":MembreRepository" as R
+database "Base de données" as DB
+
+U -> App : Saisit (username, password)
+App -> C : POST /api/auth/login\n{body: LoginDTO}
+C -> S : authentifier(username, password)
+
+S -> R : findByUsername(username)
+R -> DB : SELECT * FROM membre WHERE username=?
+DB --> R : Membre ou null
+R --> S : Optional<Membre>
+
+alt Membre non trouvé
+  S --> C : throws BadCredentialsException
+  C --> App : 401 Unauthorized
+  App --> U : "Identifiants incorrects"
+else Membre trouvé
+  S -> S : verifierPassword(password, hash)
+
+  alt Mot de passe incorrect
+    S --> C : throws BadCredentialsException
+    C --> App : 401 Unauthorized
+    App --> U : "Identifiants incorrects"
+  else Mot de passe correct
+    S -> S : genererJWT(membre)
+    S --> C : {token, role, membreId}
+    C --> App : 200 OK
+    App -> App : Stocker le token (localStorage)
+    App --> U : Connecté – redirige selon le rôle
+  end
+end
+
+@enduml
+
+' ─────────────────────────────────────────────
+
+@startuml UC03_ConsulterCompte
+title UC03 – ConsulterCompte
+
+actor "Membre connecté" as U
+participant "CallMe App" as App
+participant ":MembreController" as C
+participant ":MembreService" as S
+participant ":MembreRepository" as R
+database "Base de données" as DB
+
+U -> App : Consulte son profil
+App -> C : GET /api/membres/{id}\nHeader: Authorization: Bearer <token>
+C -> C : verifierToken(token)
+
+alt Token invalide / expiré
+  C --> App : 401 Unauthorized
+  App --> U : "Session expirée"
+else Token valide
+  C -> C : verifierDroits(tokenId, id)\n' un membre ne peut voir que son propre profil\n' sauf Secrétaire et Président
+
+  alt Accès non autorisé
+    C --> App : 403 Forbidden
+    App --> U : "Accès refusé"
+  else Accès autorisé
+    C -> S : getMembreById(id)
+    S -> R : findById(id)
+    R -> DB : SELECT * FROM membre WHERE id=?
+    DB --> R : Membre ou null
+    R --> S : Optional<Membre>
+
+    alt Membre non trouvé
+      S --> C : throws MembreNotFoundException
+      C --> App : 404 Not Found
+      App --> U : "Membre introuvable"
+    else Membre trouvé
+      S --> C : MembreDTO
+      C --> App : 200 OK {MembreDTO}
+      App --> U : Affiche le profil
+    end
+  end
+end
+
+@enduml
+
+' ─────────────────────────────────────────────
+
+@startuml UC04_VerifierEtatInscription
+title UC04 – VérifierÉtatInscription
+
+actor "Secrétaire" as SEC
+participant "CallMe App" as App
+participant ":MembreController" as C
+participant ":MembreService" as S
+participant ":MembreRepository" as R
+database "Base de données" as DB
+
+SEC -> App : Recherche un membre
+App -> C : GET /api/membres/{id}/inscription\nHeader: Authorization: Bearer <token>
+C -> C : verifierToken(token)
+C -> C : verifierRole(SECRETAIRE | PRESIDENT)
+
+alt Rôle insuffisant
+  C --> App : 403 Forbidden
+  App --> SEC : "Accès refusé"
+else Rôle autorisé
+  C -> S : getEtatInscription(id)
+  S -> R : findById(id)
+  R -> DB : SELECT * FROM membre WHERE id=?
+  DB --> R : Membre ou null
+  R --> S : Optional<Membre>
+
+  alt Membre non trouvé
+    S --> C : throws MembreNotFoundException
+    C --> App : 404 Not Found
+    App --> SEC : "Membre introuvable"
+  else Membre trouvé
+    S --> C : {membreId, etatInscription, dateInscription}
+    C --> App : 200 OK
+    App --> SEC : Affiche l'état de l'inscription
+  end
+end
+
+@enduml
+
+' ─────────────────────────────────────────────
+
+@startuml UC05_MAJEtatInscription
+title UC05 – MAJÉtatInscription
+
+actor "Secrétaire" as SEC
+participant "CallMe App" as App
+participant ":MembreController" as C
+participant ":MembreService" as S
+participant ":MembreRepository" as R
+database "Base de données" as DB
+
+SEC -> App : Modifie l'état d'inscription d'un membre
+App -> C : PUT /api/membres/{id}/inscription\n{body: {etatInscription}}
+C -> C : verifierToken(token)
+C -> C : verifierRole(SECRETAIRE)
+
+alt Rôle insuffisant
+  C --> App : 403 Forbidden
+  App --> SEC : "Accès refusé"
+else Rôle autorisé
+  C -> S : majEtatInscription(id, etatInscription)
+  S -> S : validerEtat(etatInscription)\n' ACTIVE | SUSPENDUE | EXPIREE
+
+  alt État invalide
+    S --> C : throws EtatInvalideException
+    C --> App : 400 Bad Request
+    App --> SEC : "État invalide"
+  else État valide
+    S -> R : findById(id)
+    R -> DB : SELECT * FROM membre WHERE id=?
+    DB --> R : Membre ou null
+    R --> S : Optional<Membre>
+
+    alt Membre non trouvé
+      S --> C : throws MembreNotFoundException
+      C --> App : 404 Not Found
+      App --> SEC : "Membre introuvable"
+    else Membre trouvé
+      S -> R : save(membre)
+      R -> DB : UPDATE membre SET etat=? WHERE id=?
+      DB --> R : OK
+      R --> S : Membre mis à jour
+      S --> C : {membreId, etatInscription}
+      C --> App : 200 OK
+      App --> SEC : Inscription mise à jour
+    end
+  end
+end
+
+@enduml
+
+' ─────────────────────────────────────────────
+
+@startuml UC06_MAJNiveauExpertise
+title UC06 – MAJNiveauExpertise (= RenseigNiveauExpertise)
+
+actor "Secrétaire" as SEC
+participant "CallMe App" as App
+participant ":MembreController" as C
+participant ":MembreService" as S
+participant ":MembreRepository" as R
+database "Base de données" as DB
+
+SEC -> App : Saisit le nouveau niveau [1..5]
+App -> C : PUT /api/membres/{id}/niveau\n{body: {niveauExpertise}}
+C -> C : verifierToken(token)
+C -> C : verifierRole(SECRETAIRE)
+
+alt Rôle insuffisant
+  C --> App : 403 Forbidden
+  App --> SEC : "Accès refusé"
+else Rôle autorisé
+  C -> S : majNiveau(id, niveauExpertise)
+  S -> S : validerNiveau(niveauExpertise)\n' doit être entre 1 et 5
+
+  alt Niveau hors bornes
+    S --> C : throws NiveauInvalideException
+    C --> App : 400 Bad Request
+    App --> SEC : "Niveau invalide (1 à 5)"
+  else Niveau valide
+    S -> R : findById(id)
+    R -> DB : SELECT * FROM membre WHERE id=?
+    DB --> R : Membre ou null
+    R --> S : Optional<Membre>
+
+    alt Membre non trouvé
+      S --> C : throws MembreNotFoundException
+      C --> App : 404 Not Found
+      App --> SEC : "Membre introuvable"
+    else Membre trouvé
+      S -> R : save(membre)
+      R -> DB : UPDATE membre SET niveauExpertise=? WHERE id=?
+      DB --> R : OK
+      R --> S : Membre mis à jour
+      S --> C : {membreId, niveauExpertise}
+      C --> App : 200 OK
+      App --> SEC : Niveau mis à jour
+    end
+  end
+end
+
+@enduml
+
+' ─────────────────────────────────────────────
+
+@startuml UC00_InscriptionExterne
+title UC00 – Inscription externe (register)
+
+actor "Personne externe" as U
+participant "CallMe App" as App
+participant ":RestAuth" as C
+participant ":ServiceAuth" as S
+participant ":MembreRepository" as R
+database "Base de données" as DB
+
+note over C : Endpoint PUBLIC (@PermitAll)\n/api/auth/register
+
+U -> App : Remplit le formulaire d'inscription
+App -> C : POST /api/auth/register\n{body: InscriptionImport}
+C -> S : inscrire(InscriptionImport)
+
+== Validation du niveau ==
+S -> S : validerNiveau(niveauExpertise)\n' entre 1 et 5
+alt Niveau hors bornes
+  S --> C : throws NiveauInvalide
+  C --> App : 400 Bad Request
+  App --> U : "Niveau invalide (1 à 5)"
+else Niveau valide
+
+  == Unicité username ==
+  S -> R : findByUsername(username)
+  R -> DB : SELECT * WHERE username=?
+  DB --> R : Optional<Membre>
+  R --> S : Optional<Membre>
+  alt Username pris
+    S --> C : throws UsernameDejaUtilise
+    C --> App : 409 Conflict
+    App --> U : "Nom d'utilisateur déjà utilisé"
+  else Username libre
+
+    == Unicité email ==
+    S -> R : findByEmail(email)
+    R -> DB : SELECT * WHERE email=?
+    DB --> R : Optional<Membre>
+    R --> S : Optional<Membre>
+    alt Email pris
+      S --> C : throws EmailDejaUtilise
+      C --> App : 409 Conflict
+      App --> U : "Email déjà utilisé"
+    else Email libre
+      S -> S : hashPassword(password)
+      note right of S : role = ELEVE (par défaut)\netatInscription = EN_ATTENTE\n(validation ultérieure par le secrétaire)\ndateInscription = now()
+      S -> R : save(Membre)
+      R -> DB : INSERT INTO membre
+      DB --> R : Membre persisté
+      R --> S : Membre
+      S --> C : MembreExport (sans password)
+      C --> App : 201 Created
+      App --> U : "Compte créé – en attente de validation"
+    end
+  end
+end
+
+@enduml

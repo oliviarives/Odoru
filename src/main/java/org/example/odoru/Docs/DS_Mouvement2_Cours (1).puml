@@ -1,0 +1,137 @@
+@startuml UC07_PlanifierCours
+title UC07 – PlanifierCours
+
+actor "Enseignant" as ENS
+participant "CallMe App" as App
+participant ":CoursController" as C
+participant ":CoursService" as S
+participant ":MembreService" as MS
+participant ":CoursRepository" as R
+database "Base de données" as DB
+
+ENS -> App : Saisit (titre, niveauCible, jour,\nheureDebut, lieu, duree, dateDebut)
+App -> C : POST /api/cours\n{body: CoursDTO}\nHeader: Authorization: Bearer <token>
+C -> C : @PreAuthorize hasRole('ENSEIGNANT')\nenseignant = @AuthenticationPrincipal\n(extrait du JWT, PAS du body)
+C -> C : verifierToken(token)
+C -> C : verifierRole(ENSEIGNANT)
+
+alt Rôle insuffisant
+  C --> App : 403 Forbidden
+  App --> ENS : "Accès refusé"
+else Rôle autorisé
+  C -> S : planifierCours(CoursDTO, enseignantId)
+
+  == Règle métier 1 : date > J+7 ==
+  S -> S : verifierDelai(dateDebut)\n' dateDebut >= dateSaisie + 7 jours
+  alt Date trop proche (< J+7)
+    S --> C : throws DateTropProcheException
+    C --> App : 400 Bad Request
+    App --> ENS : "Un cours doit être planifié\nau moins 7 jours à l'avance"
+  else Délai respecté
+
+    == Règle métier 2 : enseignant apte au niveau ==
+    S -> MS : getMembreById(enseignantId)
+    MS --> S : Membre (enseignant)
+    S -> S : verifierAptitude(enseignant.niveauExpertise,\nniveauCible)\n' niveauExpertise >= niveauCible
+    alt Niveau insuffisant
+      S --> C : throws NiveauInsuffisantException
+      C --> App : 403 Forbidden
+      App --> ENS : "Niveau d'expertise insuffisant\npour ce niveau de cours"
+    else Enseignant apte
+
+      == Règle métier 3 : créneau libre ==
+      S -> R : existsByCreneauAndLieu(jour, heureDebut, lieu)
+      R -> DB : SELECT COUNT(*) ...
+      DB --> R : résultat
+      R --> S : boolean
+      alt Créneau occupé
+        S --> C : throws CreneauOccupeException
+        C --> App : 409 Conflict
+        App --> ENS : "Créneau déjà occupé"
+      else Créneau libre
+        S -> R : save(Cours)
+        R -> DB : INSERT INTO evenement + cours
+        DB --> R : Cours persisté
+        R --> S : Cours
+        note right of S : Les élèves de niveau X sont\nde facto inscrits (jointure dynamique\nsur niveauExpertise = niveauCible)
+        S --> C : CoursDTO
+        C --> App : 201 Created
+        App --> ENS : Cours planifié avec succès
+      end
+    end
+  end
+end
+
+@enduml
+
+' ─────────────────────────────────────────────
+
+@startuml UC08_ConsulterPlagesCoursNiveau
+title UC08 – ConsulterPlagesCoursNiveau (Élève)
+
+actor "Élève" as EL
+participant "CallMe App" as App
+participant ":CoursController" as C
+participant ":CoursService" as S
+participant ":CoursRepository" as R
+database "Base de données" as DB
+
+EL -> App : Consulte les cours de son niveau
+App -> C : GET /api/cours?niveauCible={niveau}\nHeader: Authorization: Bearer <token>
+C -> C : verifierToken(token)
+
+alt Token invalide
+  C --> App : 401 Unauthorized
+  App --> EL : "Session expirée"
+else Token valide
+  C -> C : validerNiveau(niveauCible)
+
+  alt Niveau invalide
+    C --> App : 400 Bad Request
+    App --> EL : "Niveau invalide"
+  else Niveau valide
+    C -> S : getCoursParNiveau(niveauCible)
+    S -> R : findByNiveauCible(niveauCible)
+    R -> DB : SELECT * FROM cours\nWHERE niveauCible=? AND dateDebut >= now()
+    DB --> R : Liste de cours
+    R --> S : List<Cours>
+    S --> C : List<CoursDTO>
+    C --> App : 200 OK [CoursDTO, ...]
+    App --> EL : Affiche les créneaux de cours
+  end
+end
+
+@enduml
+
+' ─────────────────────────────────────────────
+
+@startuml UC09_ConsulterPlageCours_Enseignant
+title UC09 – ConsulterPlageCours (Enseignant)
+
+actor "Enseignant" as ENS
+participant "CallMe App" as App
+participant ":CoursController" as C
+participant ":CoursService" as S
+participant ":CoursRepository" as R
+database "Base de données" as DB
+
+ENS -> App : Consulte les cours qu'il donne
+App -> C : GET /api/cours?enseignantId={id}\nHeader: Authorization: Bearer <token>
+C -> C : verifierToken(token)
+
+alt Token invalide
+  C --> App : 401 Unauthorized
+  App --> ENS : "Session expirée"
+else Token valide
+  note right of C : enseignantId est extrait du token\n(l'enseignant ne voit que SES cours)
+  C -> S : getCoursParEnseignant(enseignantId)
+  S -> R : findByEnseignantId(enseignantId)
+  R -> DB : SELECT * FROM cours WHERE enseignant_id=?
+  DB --> R : Liste de cours
+  R --> S : List<Cours>
+  S --> C : List<CoursDTO>
+  C --> App : 200 OK [CoursDTO, ...]
+  App --> ENS : Affiche ses créneaux de cours
+end
+
+@enduml

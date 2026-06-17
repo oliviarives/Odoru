@@ -1,0 +1,206 @@
+@startuml UC13_AssocierBadge
+title UC13 – AssocierBadge
+
+actor "Secrétaire" as SEC
+participant "CallMe App" as App
+participant ":MembreController" as C
+participant ":BadgeService" as S
+participant ":MembreRepository" as MR
+participant ":BadgeRepository" as BR
+database "Base de données" as DB
+
+SEC -> App : Associe un badge à un membre\n(saisit le numéro du badge)
+App -> C : PUT /api/membres/{id}/badge\n{body: {numeroBadge}}
+C -> C : verifierToken(token)
+C -> C : verifierRole(SECRETAIRE)
+
+alt Rôle insuffisant
+  C --> App : 403 Forbidden
+  App --> SEC : "Seul le secrétaire peut associer un badge"
+else Rôle autorisé
+  C -> S : associerBadge(membreId, numeroBadge)
+
+  S -> MR : findById(membreId)
+  MR -> DB : SELECT * FROM membre WHERE id=?
+  DB --> MR : Membre ou null
+  MR --> S : Optional<Membre>
+  alt Membre non trouvé
+    S --> C : throws MembreNotFoundException
+    C --> App : 404 Not Found
+    App --> SEC : "Membre introuvable"
+  else Membre trouvé
+
+    S -> BR : findByNumeroBadge(numeroBadge)
+    BR -> DB : SELECT * FROM badge WHERE numero=?
+    DB --> BR : Badge ou null
+    BR --> S : Optional<Badge>
+    alt Badge déjà associé à un autre membre
+      S --> C : throws BadgeDejaAssocieException
+      C --> App : 409 Conflict
+      App --> SEC : "Badge déjà attribué"
+    else Badge disponible
+      S -> BR : save(Badge)
+      BR -> DB : INSERT/UPDATE badge SET membre_id=?
+      DB --> BR : Badge persisté
+      BR --> S : Badge
+      S --> C : {membreId, numeroBadge}
+      C --> App : 200 OK
+      App --> SEC : Badge associé avec succès
+    end
+  end
+end
+
+@enduml
+
+' ─────────────────────────────────────────────
+
+@startuml UC14_DissocierBadge
+title UC14 – DissocierBadge
+
+actor "Secrétaire" as SEC
+participant "CallMe App" as App
+participant ":MembreController" as C
+participant ":BadgeService" as S
+participant ":MembreRepository" as MR
+participant ":BadgeRepository" as BR
+database "Base de données" as DB
+
+SEC -> App : Dissocie le badge d'un membre
+App -> C : DELETE /api/membres/{id}/badge
+C -> C : verifierToken(token)
+C -> C : verifierRole(SECRETAIRE)
+
+alt Rôle insuffisant
+  C --> App : 403 Forbidden
+  App --> SEC : "Seul le secrétaire peut dissocier un badge"
+else Rôle autorisé
+  C -> S : dissocierBadge(membreId)
+
+  S -> MR : findById(membreId)
+  MR -> DB : SELECT * FROM membre WHERE id=?
+  DB --> MR : Membre ou null
+  MR --> S : Optional<Membre>
+  alt Membre non trouvé
+    S --> C : throws MembreNotFoundException
+    C --> App : 404 Not Found
+    App --> SEC : "Membre introuvable"
+  else Membre trouvé
+
+    S -> S : verifierBadgeAssocie(membre)
+    alt Aucun badge associé
+      S --> C : throws AucunBadgeAssocieException
+      C --> App : 404 Not Found
+      App --> SEC : "Aucun badge associé à ce membre"
+    else Badge présent
+      S -> BR : dissocier(badge)
+      BR -> DB : UPDATE badge SET membre_id=NULL
+      note right of BR : Le badge n'est PAS supprimé\n(agrégation 0..1)
+      DB --> BR : OK
+      BR --> S : OK
+      S --> C : {membreId, message: "Badge dissocié"}
+      C --> App : 200 OK
+      App --> SEC : Badge dissocié avec succès
+    end
+  end
+end
+
+@enduml
+
+' ─────────────────────────────────────────────
+
+@startuml UC15_BadgerPresence
+title UC15 – BadgerPrésence (Boîtier)
+
+actor "Boîtier physique" as BOX
+participant ":BadgeController" as C
+participant ":PresenceService" as S
+participant ":BadgeRepository" as BR
+participant ":CoursRepository" as CR
+participant ":PresenceRepository" as PR
+database "Base de données" as DB
+
+note over BOX : L'élève badge sur le boîtier.\nLe boîtier émet un appel REST (simulé).
+
+BOX -> C : POST /api/badges/badger\n{body: {numeroBadge}}
+C -> S : enregistrerPresence(numeroBadge)
+
+== Identifier le porteur du badge ==
+S -> BR : findByNumeroBadge(numeroBadge)
+BR -> DB : SELECT * FROM badge WHERE numero=?
+DB --> BR : Badge ou null
+BR --> S : Optional<Badge>
+alt Badge inconnu
+  S --> C : throws BadgeNotFoundException
+  C --> BOX : 404 Not Found
+else Badge reconnu
+
+  == Identifier le cours courant ==
+  S -> CR : findCoursCourant(badge.membre.niveauExpertise, now())
+  CR -> DB : SELECT * FROM cours\nWHERE niveauCible=? AND créneau en cours
+  DB --> CR : Cours ou null
+  CR --> S : Optional<Cours>
+  alt Aucun cours en cours
+    S --> C : throws PasDeCoursCourantException
+    C --> BOX : 409 Conflict
+  else Cours en cours trouvé
+
+    == Vérifier non-doublon ==
+    S -> PR : existsByMembreAndCours(membreId, coursId)
+    PR -> DB : SELECT COUNT(*) ...
+    DB --> PR : résultat
+    PR --> S : boolean
+    alt Présence déjà enregistrée
+      S --> C : throws DejaPresException
+      C --> BOX : 409 Conflict
+    else Première présence
+      S -> PR : save(Presence)
+      PR -> DB : INSERT INTO presence\n(membre_id, cours_id, dateHeure)
+      DB --> PR : Presence persistée
+      PR --> S : Presence
+      S --> C : {membreId, coursId, dateHeure}
+      C --> BOX : 200 OK
+    end
+  end
+end
+
+@enduml
+
+' ─────────────────────────────────────────────
+
+@startuml UC16_HistoriqueCoursSuivi
+title UC16 – HistoriqueCoursSuivi (Élève)
+
+actor "Élève" as EL
+participant "CallMe App" as App
+participant ":MembreController" as C
+participant ":PresenceService" as S
+participant ":PresenceRepository" as PR
+database "Base de données" as DB
+
+EL -> App : Consulte les cours qu'il a suivis
+App -> C : GET /api/membres/{id}/historique\nHeader: Authorization: Bearer <token>\nQuery (opt): dateDebut, dateFin
+C -> C : verifierToken(token)
+C -> C : verifierDroits(tokenId, id)\n' un élève ne voit que son propre historique
+
+alt Accès non autorisé
+  C --> App : 403 Forbidden
+  App --> EL : "Accès refusé"
+else Accès autorisé
+  C -> S : getHistorique(id, dateDebut, dateFin)
+  S -> PR : findByMembreId(id, dateDebut, dateFin)
+  PR -> DB : SELECT p.*, c.titre, c.dateDebut\nFROM presence p JOIN cours c ...\nWHERE p.membre_id=?
+  DB --> PR : Liste de présences
+  PR --> S : List<Presence>
+
+  alt Aucune présence
+    S --> C : [] (liste vide)
+    C --> App : 200 OK []
+    App --> EL : "Aucun cours suivi"
+  else Présences trouvées
+    S --> C : List<HistoriqueDTO>
+    C --> App : 200 OK [{coursId, titre, dateDebut, present}, ...]
+    App --> EL : Affiche l'historique des cours suivis
+  end
+end
+
+@enduml

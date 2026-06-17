@@ -27,7 +27,7 @@ public class RestCompetition {
     // ---------- Planification ----------
 
     @PostMapping
-    @PreAuthorize("hasRole('ENSEIGNANT')")
+    @PreAuthorize("hasAnyRole('ENSEIGNANT','PRESIDENT')")
     public ResponseEntity<CompetitionExport> planifier(
             @RequestBody CompetitionImport competitionImport,
             @AuthenticationPrincipal MembreDetails enseignant) {

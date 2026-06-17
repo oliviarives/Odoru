@@ -1,0 +1,158 @@
+@startuml UC10_PlanifierCompetition
+title UC10 – PlanifierCompétition
+
+actor "Enseignant" as ENS
+participant "CallMe App" as App
+participant ":CompetitionController" as C
+participant ":CompetitionService" as S
+participant ":MembreService" as MS
+participant ":CompetitionRepository" as R
+database "Base de données" as DB
+
+ENS -> App : Saisit (titre, niveauCible, jour,\nheureDebut, lieu, duree, dateDebut)
+App -> C : POST /api/competitions\n{body: CompetitionDTO}\nHeader: Authorization: Bearer <token>
+C -> C : @PreAuthorize hasRole('ENSEIGNANT')\nenseignant = @AuthenticationPrincipal\n(extrait du JWT, PAS du body)
+C -> C : verifierToken(token)
+C -> C : verifierRole(ENSEIGNANT)
+
+alt Rôle insuffisant
+  C --> App : 403 Forbidden
+  App --> ENS : "Accès refusé"
+else Rôle autorisé
+  C -> S : planifierCompetition(CompetitionDTO, enseignantId)
+
+  == Règle métier 1 : date > J+7 ==
+  S -> S : verifierDelai(dateDebut)
+  alt Date trop proche (< J+7)
+    S --> C : throws DateTropProcheException
+    C --> App : 400 Bad Request
+    App --> ENS : "Une compétition doit être planifiée\nau moins 7 jours à l'avance"
+  else Délai respecté
+
+    == Règle métier 2 : enseignant apte au niveau ==
+    S -> MS : getMembreById(enseignantId)
+    MS --> S : Membre (enseignant)
+    S -> S : verifierAptitude(enseignant.niveauExpertise,\nniveauCible)
+    alt Niveau insuffisant
+      S --> C : throws NiveauInsuffisantException
+      C --> App : 403 Forbidden
+      App --> ENS : "Niveau d'expertise insuffisant"
+    else Enseignant apte
+      S -> R : save(Competition)
+      R -> DB : INSERT INTO evenement + competition
+      DB --> R : Competition persistée
+      R --> S : Competition
+      S --> C : CompetitionDTO
+      C --> App : 201 Created
+      App --> ENS : Compétition planifiée avec succès
+    end
+  end
+end
+
+@enduml
+
+' ─────────────────────────────────────────────
+
+@startuml UC11_IndiquerResultatCompetition
+title UC11 – IndiquerRésultatCompétition
+
+actor "Enseignant" as ENS
+participant "CallMe App" as App
+participant ":CompetitionController" as C
+participant ":CompetitionService" as S
+participant ":CompetitionRepository" as CR
+participant ":MembreRepository" as MR
+participant ":ResultatRepository" as RR
+database "Base de données" as DB
+
+ENS -> App : Saisit la note d'un élève [0.0..10.0]
+App -> C : PUT /api/competitions/{id}/resultats/{eleveId}\n{body: {note}}
+C -> C : verifierToken(token)
+C -> C : verifierRole(ENSEIGNANT)
+
+alt Rôle insuffisant
+  C --> App : 403 Forbidden
+  App --> ENS : "Accès refusé"
+else Rôle autorisé
+  C -> S : indiquerResultat(competitionId, eleveId, note)
+
+  == Validation de la note ==
+  S -> S : validerNote(note)\n' 0.0 <= note <= 10.0, précision 0.1
+  alt Note invalide
+    S --> C : throws NoteInvalideException
+    C --> App : 400 Bad Request
+    App --> ENS : "Note invalide (0 à 10, au 1/10e)"
+  else Note valide
+
+    S -> CR : findById(competitionId)
+    CR -> DB : SELECT * FROM competition WHERE id=?
+    DB --> CR : Competition ou null
+    CR --> S : Optional<Competition>
+    alt Compétition non trouvée
+      S --> C : throws CompetitionNotFoundException
+      C --> App : 404 Not Found
+      App --> ENS : "Compétition introuvable"
+    else Compétition trouvée
+
+      S -> MR : findById(eleveId)
+      MR -> DB : SELECT * FROM membre WHERE id=?
+      DB --> MR : Membre ou null
+      MR --> S : Optional<Membre>
+      alt Élève non trouvé
+        S --> C : throws MembreNotFoundException
+        C --> App : 404 Not Found
+        App --> ENS : "Élève introuvable"
+      else Élève trouvé
+        S -> RR : save(ResultatCompetition)
+        RR -> DB : INSERT/UPDATE resultat_competition
+        DB --> RR : Resultat persisté
+        RR --> S : ResultatCompetition
+        S --> C : {competitionId, eleveId, note}
+        C --> App : 200 OK
+        App --> ENS : Résultat enregistré
+      end
+    end
+  end
+end
+
+@enduml
+
+' ─────────────────────────────────────────────
+
+@startuml UC12_VisualiserNotesCompetition
+title UC12 – VisualiserNotesCompétition (Élève)
+
+actor "Élève" as EL
+participant "CallMe App" as App
+participant ":CompetitionController" as C
+participant ":CompetitionService" as S
+participant ":ResultatRepository" as RR
+database "Base de données" as DB
+
+EL -> App : Consulte ses résultats de compétition
+App -> C : GET /api/membres/{id}/competitions/resultats\nHeader: Authorization: Bearer <token>\nQuery (opt): dateDebut, dateFin
+C -> C : verifierToken(token)
+C -> C : verifierDroits(tokenId, id)\n' un élève ne voit que SES propres notes
+
+alt Accès non autorisé
+  C --> App : 403 Forbidden
+  App --> EL : "Accès refusé"
+else Accès autorisé
+  C -> S : getResultatsParEleve(id, dateDebut, dateFin)
+  S -> RR : findByMembreId(id, dateDebut, dateFin)
+  RR -> DB : SELECT r.*, c.titre, c.dateDebut\nFROM resultat_competition r\nJOIN competition c ...\nWHERE r.membre_id=?
+  DB --> RR : Liste de résultats
+  RR --> S : List<ResultatCompetition>
+
+  alt Aucun résultat
+    S --> C : [] (liste vide)
+    C --> App : 200 OK []
+    App --> EL : "Aucun résultat de compétition"
+  else Résultats trouvés
+    S --> C : List<ResultatDTO>
+    C --> App : 200 OK [{competitionId, titre, dateDebut, note}, ...]
+    App --> EL : Affiche les notes de compétition
+  end
+end
+
+@enduml
