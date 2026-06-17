@@ -3,6 +3,7 @@ package org.example.odoru.exposition;
 import org.example.odoru.entities.Badge;
 import org.example.odoru.export.*;
 import org.example.odoru.metier.ServiceBadge;
+import org.example.odoru.metier.ServiceCompetition;
 import org.example.odoru.metier.ServiceMembre;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,10 +18,13 @@ public class RestMembre {
 
     private final ServiceMembre serviceMembre;
     private final ServiceBadge serviceBadge;
+    private final ServiceCompetition serviceCompetition;
 
-    public RestMembre(ServiceMembre serviceMembre, ServiceBadge serviceBadge) {
+    public RestMembre(ServiceMembre serviceMembre, ServiceBadge serviceBadge,
+                      ServiceCompetition serviceCompetition) {
         this.serviceMembre = serviceMembre;
         this.serviceBadge = serviceBadge;
+        this.serviceCompetition = serviceCompetition;
     }
 
     @PostMapping
@@ -63,5 +67,10 @@ public class RestMembre {
     public Map<String, Object> dissocierBadge(@PathVariable long id) {
         serviceBadge.dissocierBadge(id);
         return Map.of("membreId", id, "message", "Badge dissocié");
+    }
+
+    @GetMapping("/{id}/competitions/resultats")
+    public List<ResultatExport> resultatsEleve(@PathVariable long id) {
+        return serviceCompetition.consulterResultatsEleve(id);
     }
 }

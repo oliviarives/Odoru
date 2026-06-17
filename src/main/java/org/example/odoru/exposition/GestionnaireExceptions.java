@@ -94,4 +94,16 @@ public class GestionnaireExceptions {
     public ResponseEntity<ErrorExport> gereCreneauOccupe(CreneauOccupeException e) {
         return reponse(e, HttpStatus.CONFLICT);
     }
+
+    // ---------- Mouvement III : compétitions ----------
+
+    @ExceptionHandler(CompetitionNotFoundException.class)
+    public ResponseEntity<ErrorExport> gereCompetitionInexistante(CompetitionNotFoundException e) {
+        return reponse(e, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(NoteInvalideException.class)
+    public ResponseEntity<ErrorExport> gereNoteInvalide(NoteInvalideException e) {
+        return reponse(e, HttpStatus.BAD_REQUEST);
+    }
 }
