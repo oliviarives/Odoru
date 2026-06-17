@@ -11,6 +11,8 @@ public interface PresenceRepository extends CrudRepository<Presence, Long> {
 
     boolean existsByMembreAndCours(Membre membre, Cours cours);
 
+    long countByCoursId(Long coursId);
+
     List<Presence> findByMembreId(Long membreId);
 
     List<Presence> findByCoursId(Long coursId);

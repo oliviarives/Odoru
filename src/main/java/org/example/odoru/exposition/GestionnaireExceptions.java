@@ -118,4 +118,11 @@ public class GestionnaireExceptions {
     public ResponseEntity<ErrorExport> gereDejaPresent(DejaPresException e) {
         return reponse(e, HttpStatus.CONFLICT);
     }
+
+    // ---------- Jwt ----------
+
+    @ExceptionHandler(BadCredentialException.class)
+    public ResponseEntity<ErrorExport> gereBadCredentials(BadCredentialException e) {
+        return reponse(e, HttpStatus.UNAUTHORIZED);
+    }
 }

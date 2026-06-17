@@ -5,11 +5,14 @@ import org.example.odoru.dao.MembreRepository;
 import org.example.odoru.entities.EtatInscription;
 import org.example.odoru.entities.Membre;
 import org.example.odoru.entities.Role;
+import org.example.odoru.exceptions.BadCredentialException;
 import org.example.odoru.exceptions.EmailAlreadyExistException;
 import org.example.odoru.exceptions.NiveauInvalideException;
 import org.example.odoru.exceptions.UsernameAlreadyExistException;
 import org.example.odoru.export.InscriptionImport;
 import org.example.odoru.export.MembreExport;
+import org.example.odoru.export.TokenExport;
+import org.example.odoru.secu.JwtUtil;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -20,10 +23,24 @@ public class ServiceAuth {
 
     private final MembreRepository membreRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
 
-    public ServiceAuth(MembreRepository membreRepository, PasswordEncoder passwordEncoder) {
+    public ServiceAuth(MembreRepository membreRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
         this.membreRepository = membreRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtUtil = jwtUtil;
+    }
+
+    public TokenExport login(String username, String password) {
+        Membre membre = membreRepository.findByUsername(username)
+                .orElseThrow(() -> new BadCredentialException("Identifiants incorrects."));
+
+        if (!passwordEncoder.matches(password, membre.getPassword())) {
+            throw new BadCredentialException("Identifiants incorrects.");
+        }
+
+        String token = jwtUtil.genererToken(membre);
+        return new TokenExport(token, membre.getRole(), membre.getId());
     }
 
     public MembreExport inscrire(InscriptionImport inscription) {
