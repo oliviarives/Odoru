@@ -44,7 +44,7 @@ public class RestCompetition {
     // ---------- Résultats ----------
 
     @PutMapping("/{id}/resultats/{eleveId}")
-    @PreAuthorize("hasRole('ENSEIGNANT','PRESIDENT')")
+    @PreAuthorize("hasAnyRole('ENSEIGNANT','PRESIDENT')")
     public ResultatExport indiquerResultat(
             @PathVariable long id,
             @PathVariable long eleveId,
