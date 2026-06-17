@@ -3,8 +3,11 @@ package org.example.odoru.exposition;
 import org.example.odoru.export.CoursExport;
 import org.example.odoru.export.CoursImport;
 import org.example.odoru.metier.ServiceCours;
+import org.example.odoru.secu.MembreDetails;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,10 +23,11 @@ public class RestCours {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ENSEIGNANT')")
     public ResponseEntity<CoursExport> planifier(
             @RequestBody CoursImport coursImport,
-            @RequestParam long enseignantId) {
-        CoursExport cours = serviceCours.planifierCours(coursImport, enseignantId);
+            @AuthenticationPrincipal MembreDetails enseignant) {
+        CoursExport cours = serviceCours.planifierCours(coursImport, enseignant.getMembre().getId());
         return new ResponseEntity<>(cours, HttpStatus.CREATED);
     }
 

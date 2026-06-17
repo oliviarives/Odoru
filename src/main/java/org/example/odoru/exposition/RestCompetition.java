@@ -5,8 +5,11 @@ import org.example.odoru.export.CompetitionImport;
 import org.example.odoru.export.NoteImport;
 import org.example.odoru.export.ResultatExport;
 import org.example.odoru.metier.ServiceCompetition;
+import org.example.odoru.secu.MembreDetails;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,11 +27,13 @@ public class RestCompetition {
     // ---------- Planification ----------
 
     @PostMapping
+    @PreAuthorize("hasRole('ENSEIGNANT')")
     public ResponseEntity<CompetitionExport> planifier(
             @RequestBody CompetitionImport competitionImport,
-            @RequestParam long enseignantId) {
-        CompetitionExport competition = serviceCompetition.planifierCompetition(competitionImport, enseignantId);
-        return new ResponseEntity<>(competition, HttpStatus.CREATED);
+            @AuthenticationPrincipal MembreDetails enseignant) {
+        CompetitionExport c = serviceCompetition.planifierCompetition(
+                competitionImport, enseignant.getMembre().getId());
+        return new ResponseEntity<>(c, HttpStatus.CREATED);
     }
 
     @GetMapping("/{id}")
@@ -39,6 +44,7 @@ public class RestCompetition {
     // ---------- Résultats ----------
 
     @PutMapping("/{id}/resultats/{eleveId}")
+    @PreAuthorize("hasRole('ENSEIGNANT','PRESIDENT')")
     public ResultatExport indiquerResultat(
             @PathVariable long id,
             @PathVariable long eleveId,
@@ -47,6 +53,7 @@ public class RestCompetition {
     }
 
     @GetMapping("/{id}/resultats")
+    @PreAuthorize("hasRole('ENSEIGNANT','PRESIDENT')")
     public List<ResultatExport> resultatsCompetition(@PathVariable long id) {
         return serviceCompetition.consulterResultatsCompetition(id);
     }

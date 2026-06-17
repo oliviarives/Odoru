@@ -5,12 +5,14 @@ import org.example.odoru.export.ResultatExport;
 import org.example.odoru.export.StatsCompetitionNiveauExport;
 import org.example.odoru.export.StatsGlobalesExport;
 import org.example.odoru.metier.ServiceStats;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/stats")
+@PreAuthorize("hasRole('PRESIDENT')")
 public class RestStats {
 
     private final ServiceStats serviceStats;
