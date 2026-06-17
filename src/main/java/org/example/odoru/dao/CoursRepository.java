@@ -11,5 +11,7 @@ public interface CoursRepository extends CrudRepository<Cours, Long> {
 
     List<Cours> findByEnseignantId(Long enseignantId);
 
+    List<Cours> findByNiveauCibleAndJour(int niveauCible, java.time.DayOfWeek jour);
+
     boolean existsByLieuAndJourAndHeureDebut(String lieu, java.time.DayOfWeek jour, java.time.LocalTime heureDebut);
 }

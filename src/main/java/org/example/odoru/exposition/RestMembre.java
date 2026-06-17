@@ -5,6 +5,7 @@ import org.example.odoru.export.*;
 import org.example.odoru.metier.ServiceBadge;
 import org.example.odoru.metier.ServiceCompetition;
 import org.example.odoru.metier.ServiceMembre;
+import org.example.odoru.metier.ServicePresence;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,12 +20,14 @@ public class RestMembre {
     private final ServiceMembre serviceMembre;
     private final ServiceBadge serviceBadge;
     private final ServiceCompetition serviceCompetition;
+    private final ServicePresence servicePresence;
 
     public RestMembre(ServiceMembre serviceMembre, ServiceBadge serviceBadge,
-                      ServiceCompetition serviceCompetition) {
+                      ServiceCompetition serviceCompetition, ServicePresence servicePresence) {
         this.serviceMembre = serviceMembre;
         this.serviceBadge = serviceBadge;
         this.serviceCompetition = serviceCompetition;
+        this.servicePresence = servicePresence;
     }
 
     @PostMapping
@@ -73,4 +76,10 @@ public class RestMembre {
     public List<ResultatExport> resultatsEleve(@PathVariable long id) {
         return serviceCompetition.consulterResultatsEleve(id);
     }
+
+    @GetMapping("/{id}/historique")
+    public List<HistoriqueExport> historique(@PathVariable long id) {
+        return servicePresence.consulterHistorique(id);
+    }
+
 }

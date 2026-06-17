@@ -1,20 +1,35 @@
 package org.example.odoru.entities;
 
-import jakarta.persistence.Id;
-import org.springframework.format.annotation.DateTimeFormat;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
+@Entity
+@Getter
+@Setter
+@NoArgsConstructor
 public class Presence {
+
     @Id
-    public Long Id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    /*@DateTimeFormat(pattern = "yyyy-MM-dd")
-    LocalDate date;
+    @ManyToOne
+    @JoinColumn(name = "membre_id")
+    private Membre membre;
 
-    @DateTimeFormat(iso = DateTimeFormat.ISO.TIME)
-    LocalTime time;*/
+    @ManyToOne
+    @JoinColumn(name = "cours_id")
+    private Cours cours;
 
-    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-    LocalDateTime dateTime;
+    private LocalDateTime dateHeure;
+
+    public Presence(Membre membre, Cours cours, LocalDateTime dateHeure) {
+        this.membre = membre;
+        this.cours = cours;
+        this.dateHeure = dateHeure;
+    }
 }

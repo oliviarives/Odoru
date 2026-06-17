@@ -106,4 +106,16 @@ public class GestionnaireExceptions {
     public ResponseEntity<ErrorExport> gereNoteInvalide(NoteInvalideException e) {
         return reponse(e, HttpStatus.BAD_REQUEST);
     }
+
+    // ---------- Mouvement IV : badges / présences ----------
+
+    @ExceptionHandler(PasDeCoursCourantException.class)
+    public ResponseEntity<ErrorExport> gerePasDeCoursCourant(PasDeCoursCourantException e) {
+        return reponse(e, HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(DejaPresException.class)
+    public ResponseEntity<ErrorExport> gereDejaPresent(DejaPresException e) {
+        return reponse(e, HttpStatus.CONFLICT);
+    }
 }
