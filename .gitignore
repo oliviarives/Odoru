@@ -1,4 +1,5 @@
 HELP.md
+.DS_Store
 target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
@@ -28,6 +29,11 @@ target/
 build/
 !**/src/main/**/build/
 !**/src/test/**/build/
+
+### Frontend ###
+odoru-front/node_modules/
+odoru-front/dist/
+odoru-front/.vite/
 
 ### VS Code ###
 .vscode/
