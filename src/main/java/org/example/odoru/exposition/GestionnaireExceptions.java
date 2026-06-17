@@ -72,4 +72,26 @@ public class GestionnaireExceptions {
                 status
         );
     }
+
+    // ---------- Mouvement II : cours ----------
+
+    @ExceptionHandler(CoursNotFoundException.class)
+    public ResponseEntity<ErrorExport> gereCoursInexistant(CoursNotFoundException e) {
+        return reponse(e, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(DateTropProcheException.class)
+    public ResponseEntity<ErrorExport> gereDateTropProche(DateTropProcheException e) {
+        return reponse(e, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(NiveauInsuffisantException.class)
+    public ResponseEntity<ErrorExport> gereNiveauInsuffisant(NiveauInsuffisantException e) {
+        return reponse(e, HttpStatus.FORBIDDEN);
+    }
+
+    @ExceptionHandler(CreneauOccupeException.class)
+    public ResponseEntity<ErrorExport> gereCreneauOccupe(CreneauOccupeException e) {
+        return reponse(e, HttpStatus.CONFLICT);
+    }
 }

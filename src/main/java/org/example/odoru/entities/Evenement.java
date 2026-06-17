@@ -1,26 +1,53 @@
 package org.example.odoru.entities;
 
-import jakarta.persistence.Id;
-import org.springframework.format.annotation.DateTimeFormat;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
-public class Evenement {
+@Entity
+@Inheritance(strategy = InheritanceType.JOINED)
+@Getter
+@Setter
+@NoArgsConstructor
+public abstract class Evenement {
+
     @Id
-    public Long Id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    public String titre;
-    public int niveauCible;
-    public DayOfWeek jour;
+    private String titre;
 
-    @DateTimeFormat(iso = DateTimeFormat.ISO.TIME)
-    LocalTime heureDebut;
+    private int niveauCible;
 
-    public String lieu;
-    public int dureeMinutes;
+    @Enumerated(EnumType.STRING)
+    private DayOfWeek jour;
 
-    @DateTimeFormat(pattern = "yyyy-MM-dd")
-    LocalDate dateDebut;
+    private LocalTime heureDebut;
+
+    private String lieu;
+
+    private int dureeMinutes;
+
+    private LocalDate dateDebut;
+
+    @ManyToOne
+    @JoinColumn(name = "enseignant_id")
+    private Membre enseignant;
+
+    public Evenement(String titre, int niveauCible, DayOfWeek jour, LocalTime heureDebut,
+                     String lieu, int dureeMinutes, LocalDate dateDebut, Membre enseignant) {
+        this.titre = titre;
+        this.niveauCible = niveauCible;
+        this.jour = jour;
+        this.heureDebut = heureDebut;
+        this.lieu = lieu;
+        this.dureeMinutes = dureeMinutes;
+        this.dateDebut = dateDebut;
+        this.enseignant = enseignant;
+    }
 }
