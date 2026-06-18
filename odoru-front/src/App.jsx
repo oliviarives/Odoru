@@ -27,7 +27,7 @@ const dayLabels = {
 };
 
 const navItems = [
-  { id: "home", label: "Accueil", helper: "Priorites du jour", roles: ["PRESIDENT", "SECRETAIRE", "ENSEIGNANT", "ELEVE"] },
+  { id: "home", label: "Accueil", roles: ["PRESIDENT", "SECRETAIRE", "ENSEIGNANT", "ELEVE"] },
   { id: "student", label: "Mon espace", helper: "Compte et suivi", roles: ["PRESIDENT", "SECRETAIRE", "ENSEIGNANT", "ELEVE"] },
   { id: "members", label: "Membres", helper: "Dossiers et badges", roles: ["PRESIDENT", "SECRETAIRE"] },
   { id: "planning", label: "Planning", helper: "Cours et competitions", roles: ["PRESIDENT", "SECRETAIRE", "ENSEIGNANT", "ELEVE"] },
@@ -84,8 +84,8 @@ function loadStoredSession() {
 }
 
 function formatError(status, body) {
-  if (status === 401) return "Connexion requise ou session expiree.";
-  if (status === 403) return "Action non autorisee pour ce role.";
+  if (status === 401) return "Connexion requise ou session expirée.";
+  if (status === 403) return "Action non autorisée pour ce rôle.";
   return body?.message || body?.error || `Erreur ${status}`;
 }
 
@@ -123,7 +123,7 @@ function App() {
     if (storedSession) {
       return { type: "success", text: `Session active : ${roleLabels[storedSession.role] || storedSession.role}.` };
     }
-    return { type: "info", text: "Connecte-toi ou cree un compte eleve pour commencer." };
+    return { type: "info", text: "Connectez-vous ou créez un compte élève pour commencer." };
   });
   const [data, setData] = useState(null);
 
@@ -137,7 +137,7 @@ function App() {
     return { Authorization: `Bearer ${session.token}` };
   }, [session]);
 
-  async function request(path, options = {}, successText = "Operation effectuee.", withAuth = true) {
+  async function request(path, options = {}, successText = "Operation effectuée.", withAuth = true) {
     setLoading(true);
     setNotice({ type: "info", text: "Traitement en cours..." });
     try {
@@ -192,7 +192,7 @@ function App() {
     const created = await request(
       "/api/auth/register",
       { method: "POST", body: JSON.stringify(body) },
-      "Compte eleve cree. Tu peux maintenant te connecter.",
+      "Compte élève crée. Tu peux maintenant vous pouvez vous connecter.",
       false
     );
     if (created?.username) {
@@ -207,7 +207,7 @@ function App() {
     setActiveView("home");
     setData(null);
     setFocusedMember(null);
-    setNotice({ type: "info", text: "Session fermee." });
+    setNotice({ type: "info", text: "Session fermée" });
   }
 
   function updateState(setter, field, value, numericFields = []) {
@@ -218,24 +218,24 @@ function App() {
   }
 
   function viewTitle() {
-    if (!session) return authMode === "login" ? "Connexion" : "Creation de compte";
+    if (!session) return authMode === "login" ? "Connexion" : "Création de compte";
     return {
       home: "Tableau de bord",
       student: "Mon espace",
       members: "Membres & inscriptions",
-      planning: "Planning & competitions",
+      planning: "Planning & compétitions",
       badges: "Badgeage",
       stats: "Pilotage"
     }[activeView];
   }
 
   async function loadManagedMember() {
-    const body = await request(`/api/membres/${memberId}`, {}, "Fiche membre chargee.");
+    const body = await request(`/api/membres/${memberId}`, {}, "Fiche membre chargée");
     if (body?.username) setFocusedMember(body);
   }
 
   async function loadManagedMemberState() {
-    const body = await request(`/api/membres/${memberId}/inscription`, {}, "Etat charge.");
+    const body = await request(`/api/membres/${memberId}/inscription`, {}, "État charge");
     if (focusedMember?.id === Number(memberId) && typeof body === "string") {
       setFocusedMember((current) => ({ ...current, etatInscription: body }));
     }
@@ -254,7 +254,7 @@ function App() {
     const body = await request(
       `/api/membres/${memberId}/inscription`,
       { method: "PUT", body: JSON.stringify({ etatInscription }) },
-      "Etat d'inscription mis a jour."
+      "État d'inscription mis a jour."
     );
     if (body?.username) setFocusedMember(body);
   }
@@ -269,7 +269,7 @@ function App() {
   }
 
   async function removeManagedBadge() {
-    const body = await request(`/api/membres/${memberId}/badge`, { method: "DELETE" }, "Badge dissocie.");
+    const body = await request(`/api/membres/${memberId}/badge`, { method: "DELETE" }, "Badge dissocié");
     if (body?.username) setFocusedMember(body);
   }
 
@@ -804,7 +804,7 @@ function ResultPanel({ data }) {
 }
 
 function ResultContent({ data }) {
-  if (!data) return <p className="muted">Selectionne une action : son resultat apparaitra ici.</p>;
+  if (!data) return <p className="muted">Résultat d'une action ici.</p>;
   if (Array.isArray(data) && data.length === 0) return <p className="muted">Aucun element trouve.</p>;
   if (Array.isArray(data) && data[0]?.username) return <MemberTable members={data} />;
   if (Array.isArray(data) && data[0]?.titre) return <CourseTable courses={data} />;
