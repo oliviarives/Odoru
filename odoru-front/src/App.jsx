@@ -121,7 +121,7 @@ function App() {
   const [notice, setNotice] = useState(() => {
     const storedSession = loadStoredSession();
     if (storedSession) {
-      return { type: "success", text: `Session active : ${roleLabels[storedSession.role] || storedSession.role}.` };
+      return { type: "success", text: `Connecté ${roleLabels[storedSession.role] || storedSession.role}` };
     }
     return { type: "info", text: "Connectez-vous ou créez un compte élève pour commencer." };
   });
@@ -179,7 +179,7 @@ function App() {
       localStorage.setItem("odoru-session", JSON.stringify(body));
       setSession(body);
       setActiveView("home");
-      setNotice({ type: "success", text: `Connecte en ${roleLabels[body.role] || body.role}.` });
+      setNotice({ type: "success", text: `Connecté ${roleLabels[body.role] || body.role}` });
     }
   }
 
@@ -222,8 +222,8 @@ function App() {
     return {
       home: "Tableau de bord",
       student: "Mon espace",
-      members: "Membres & inscriptions",
-      planning: "Planning & compétitions",
+      members: "Membres & Inscriptions",
+      planning: "Planning & Compétitions",
       badges: "Badgeage",
       stats: "Pilotage"
     }[activeView];
@@ -621,7 +621,7 @@ function MembersWorkspace(props) {
           ["etatInscription", focusedMember?.etatInscription || etatInscription]
         ]} />
       </article>
-      <TaskCard title="Repertoire membres" text="Afficher la liste, puis copier l'ID du membre a traiter." action="Afficher" onClick={onList} />
+      <TaskCard title="Repertoire membres" text="Afficher la liste des membres" action="Afficher" onClick={onList} />
       <article className="work-card retro-card">
         <h3>Choisir un membre</h3>
         <label>ID membre<input value={memberId} onChange={(event) => setMemberId(event.target.value)} /></label>
@@ -638,7 +638,7 @@ function MembersWorkspace(props) {
         </div>
         <div className="row">
           <label>Email<input value={memberDraft.email} onChange={(event) => setMemberDraft((current) => ({ ...current, email: event.target.value }))} /></label>
-          <label>Identifiant<input value={memberDraft.username} onChange={(event) => setMemberDraft((current) => ({ ...current, username: event.target.value }))} /></label>
+
         </div>
         <div className="row">
           <label>Mot de passe<input type="password" value={memberDraft.password} onChange={(event) => setMemberDraft((current) => ({ ...current, password: event.target.value }))} /></label>

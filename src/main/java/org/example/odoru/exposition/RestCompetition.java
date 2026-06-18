@@ -24,8 +24,6 @@ public class RestCompetition {
         this.serviceCompetition = serviceCompetition;
     }
 
-    // ---------- Planification ----------
-
     @PostMapping
     @PreAuthorize("hasAnyRole('ENSEIGNANT','PRESIDENT')")
     public ResponseEntity<CompetitionExport> planifier(
@@ -40,8 +38,6 @@ public class RestCompetition {
     public CompetitionExport consulter(@PathVariable long id) {
         return serviceCompetition.consulterCompetition(id);
     }
-
-    // ---------- Résultats ----------
 
     @PutMapping("/{id}/resultats/{eleveId}")
     @PreAuthorize("hasAnyRole('ENSEIGNANT','PRESIDENT')")

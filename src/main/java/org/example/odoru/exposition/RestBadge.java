@@ -15,10 +15,6 @@ public class RestBadge {
         this.servicePresence = servicePresence;
     }
 
-    /**
-     * Endpoint appelé par le boîtier physique quand un élève badge.
-     * Pas de token : c'est un appel machine-to-machine (simulé).
-     */
     @PostMapping("/badger")
     public PresenceExport badger(@RequestBody BadgerImport badgerImport) {
         return servicePresence.badger(badgerImport.numeroBadge());

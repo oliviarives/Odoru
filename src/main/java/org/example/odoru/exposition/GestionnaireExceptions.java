@@ -10,8 +10,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 @ControllerAdvice
 public class GestionnaireExceptions {
 
-    // ---------- 404 NOT FOUND ----------
-
+    // 404 not found
     @ExceptionHandler(MemberNotFoundException.class)
     public ResponseEntity<ErrorExport> gereMembreInexistant(MemberNotFoundException e) {
         return reponse(e, HttpStatus.NOT_FOUND);
@@ -22,8 +21,7 @@ public class GestionnaireExceptions {
         return reponse(e, HttpStatus.NOT_FOUND);
     }
 
-    // ---------- 400 BAD REQUEST ----------
-
+    // 400 bad request
     @ExceptionHandler(NiveauInvalideException.class)
     public ResponseEntity<ErrorExport> gereNiveauInvalide(NiveauInvalideException e) {
         return reponse(e, HttpStatus.BAD_REQUEST);
@@ -34,15 +32,13 @@ public class GestionnaireExceptions {
         return reponse(e, HttpStatus.BAD_REQUEST);
     }
 
-    // ---------- 403 FORBIDDEN ----------
-
+    // 403 forbidden
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorExport> gereAccessDenied(AccessDeniedException e) {
         return reponse(e, HttpStatus.FORBIDDEN);
     }
 
-    // ---------- 409 CONFLICT ----------
-
+    // 409 conflict
     @ExceptionHandler(EmailAlreadyExistException.class)
     public ResponseEntity<ErrorExport> gereEmailDejaUtilise(EmailAlreadyExistException e) {
         return reponse(e, HttpStatus.CONFLICT);
@@ -58,8 +54,6 @@ public class GestionnaireExceptions {
         return reponse(e, HttpStatus.CONFLICT);
     }
 
-    // ---------- 500 (filet de sécurité) ----------
-
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorExport> gereAutreException(Exception e) {
         e.printStackTrace();
@@ -72,8 +66,6 @@ public class GestionnaireExceptions {
                 status
         );
     }
-
-    // ---------- Mouvement II : cours ----------
 
     @ExceptionHandler(CoursNotFoundException.class)
     public ResponseEntity<ErrorExport> gereCoursInexistant(CoursNotFoundException e) {
@@ -95,8 +87,6 @@ public class GestionnaireExceptions {
         return reponse(e, HttpStatus.CONFLICT);
     }
 
-    // ---------- Mouvement III : compétitions ----------
-
     @ExceptionHandler(CompetitionNotFoundException.class)
     public ResponseEntity<ErrorExport> gereCompetitionInexistante(CompetitionNotFoundException e) {
         return reponse(e, HttpStatus.NOT_FOUND);
@@ -107,8 +97,6 @@ public class GestionnaireExceptions {
         return reponse(e, HttpStatus.BAD_REQUEST);
     }
 
-    // ---------- Mouvement IV : badges / présences ----------
-
     @ExceptionHandler(PasDeCoursCourantException.class)
     public ResponseEntity<ErrorExport> gerePasDeCoursCourant(PasDeCoursCourantException e) {
         return reponse(e, HttpStatus.CONFLICT);
@@ -118,8 +106,6 @@ public class GestionnaireExceptions {
     public ResponseEntity<ErrorExport> gereDejaPresent(DejaPresException e) {
         return reponse(e, HttpStatus.CONFLICT);
     }
-
-    // ---------- Jwt ----------
 
     @ExceptionHandler(BadCredentialException.class)
     public ResponseEntity<ErrorExport> gereBadCredentials(BadCredentialException e) {

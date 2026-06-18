@@ -46,6 +46,6 @@ public class RestCours {
         if (enseignantId != null) {
             return serviceCours.consulterParEnseignant(enseignantId);
         }
-        return List.of(); // ni niveau ni enseignant fourni : liste vide
+        return List.of();
     }
 }
