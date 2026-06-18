@@ -123,7 +123,7 @@ function App() {
     if (storedSession) {
       return { type: "success", text: `Connecté ${roleLabels[storedSession.role] || storedSession.role}` };
     }
-    return { type: "info", text: "Connectez-vous ou créez un compte élève pour commencer." };
+    return { type: "info", text: "Connectez-vous !" };
   });
   const [data, setData] = useState(null);
 
