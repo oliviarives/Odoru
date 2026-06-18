@@ -1,0 +1,319 @@
+###############################################################################
+#  DEMO ODORU - a executer dans IntelliJ (clic sur le triangle vert a gauche)
+#  Le token est capture automatiquement a chaque login et reutilise ensuite.
+#  Joue les blocs DANS L'ORDRE.  baseUrl = port de l'appli (9000).
+###############################################################################
+@baseUrl = http://localhost:9000
+
+###############################################################################
+#  ACTE 0 - PUBLIC (sans authentification)
+###############################################################################
+
+### 0.1  Inscription externe (devient ELEVE, etat EN_ATTENTE)
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "nom": "Visiteur", "prenom": "Test",
+  "email": "visiteur@odoru.fr", "username": "visiteur",
+  "password": "visiteur123", "ville": "Toulouse", "pays": "France",
+  "niveauExpertise": 2
+}
+
+### 0.2  Login PRESIDENT  (capture du token)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "username": "president", "password": "pres123" }
+
+> {% client.global.set("tokenPresident", response.body.token); %}
+
+### 0.3  Login ENSEIGNANT (prof)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "username": "prof", "password": "prof123" }
+
+> {% client.global.set("tokenProf", response.body.token); %}
+
+### 0.4  Login SECRETAIRE
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "username": "secretaire", "password": "secret123" }
+
+> {% client.global.set("tokenSecretaire", response.body.token); %}
+
+### 0.5  Login ELEVE (Sami, id=5)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "username": "sami", "password": "eleve123" }
+
+> {% client.global.set("tokenSami", response.body.token); %}
+
+### 0.6  Login ENSEIGNANT prof.maya (niveau 4 -> pour le cas "non apte")
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "username": "prof.maya", "password": "prof123" }
+
+> {% client.global.set("tokenMaya", response.body.token); %}
+
+### 0.7  (ERREUR) Mauvais mot de passe -> 401
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "username": "president", "password": "mauvais" }
+
+
+###############################################################################
+#  ACTE 1 - SECRETAIRE : gestion des membres
+###############################################################################
+
+### 1.1  Lister tous les membres
+GET {{baseUrl}}/api/membres
+Authorization: Bearer {{tokenSecretaire}}
+
+### 1.2  Consulter un membre (Sami, id=5)
+GET {{baseUrl}}/api/membres/5
+Authorization: Bearer {{tokenSecretaire}}
+
+### 1.3  Creer un membre (live)
+POST {{baseUrl}}/api/membres
+Authorization: Bearer {{tokenSecretaire}}
+Content-Type: application/json
+
+{
+  "nom": "Durand", "prenom": "Kevin",
+  "email": "kevin@odoru.fr", "username": "kevin",
+  "password": "kevin123", "ville": "Toulouse", "pays": "France",
+  "niveauExpertise": 2, "role": "ELEVE"
+}
+
+### 1.4  Consulter l'etat d'inscription de Jade (id=8 -> EN_ATTENTE)
+GET {{baseUrl}}/api/membres/8/inscription
+Authorization: Bearer {{tokenSecretaire}}
+
+### 1.5  Activer l'inscription de Jade
+PUT {{baseUrl}}/api/membres/8/inscription
+Authorization: Bearer {{tokenSecretaire}}
+Content-Type: application/json
+
+{ "etatInscription": "ACTIVE" }
+
+### 1.6  Mettre a jour le niveau d'expertise de Jade (2 -> 3)
+PUT {{baseUrl}}/api/membres/8/niveau
+Authorization: Bearer {{tokenSecretaire}}
+Content-Type: application/json
+
+{ "niveauExpertise": 3 }
+
+### 1.7  (ERREUR) Niveau hors bornes -> 400
+PUT {{baseUrl}}/api/membres/8/niveau
+Authorization: Bearer {{tokenSecretaire}}
+Content-Type: application/json
+
+{ "niveauExpertise": 9 }
+
+### 1.8  Associer un badge a Emma (id=14, qui n'en a pas)
+PUT {{baseUrl}}/api/membres/14/badge
+Authorization: Bearer {{tokenSecretaire}}
+Content-Type: application/json
+
+{ "numeroBadge": "BADGE-EMMA-001" }
+
+### 1.9  Dissocier le badge d'Emma
+DELETE {{baseUrl}}/api/membres/14/badge
+Authorization: Bearer {{tokenSecretaire}}
+
+
+###############################################################################
+#  ACTE 2 - ENSEIGNANT : cours
+###############################################################################
+
+### 2.1  Planifier un cours (creneau LIBRE, date >= aujourd'hui+7)
+POST {{baseUrl}}/api/cours
+Authorization: Bearer {{tokenProf}}
+Content-Type: application/json
+
+{
+  "titre": "Cours demo soutenance", "niveauCible": 3,
+  "jour": "FRIDAY", "heureDebut": "18:00:00",
+  "lieu": "Studio A", "dureeMinutes": 90,
+  "dateDebut": "2026-07-03"
+}
+
+### 2.2  Consulter un cours par id (le cours en cours, id=1)
+GET {{baseUrl}}/api/cours/1
+Authorization: Bearer {{tokenProf}}
+
+### 2.3  Cours d'un niveau (vue ELEVE : niveau 3)
+GET {{baseUrl}}/api/cours?niveauCible=3
+Authorization: Bearer {{tokenSami}}
+
+### 2.4  Cours d'un enseignant (id=3 = prof)
+GET {{baseUrl}}/api/cours?enseignantId=3
+Authorization: Bearer {{tokenProf}}
+
+### 2.5  (ERREUR) Date trop proche -> 400  (modifie la date pour qu'elle soit < J+7)
+POST {{baseUrl}}/api/cours
+Authorization: Bearer {{tokenProf}}
+Content-Type: application/json
+
+{
+  "titre": "Cours trop proche", "niveauCible": 3,
+  "jour": "FRIDAY", "heureDebut": "20:00:00",
+  "lieu": "Studio C", "dureeMinutes": 60,
+  "dateDebut": "2026-06-19"
+}
+
+### 2.6  (ERREUR) Creneau deja occupe -> 409  (mercredi 18:30 Salle CallMe = cours seede)
+POST {{baseUrl}}/api/cours
+Authorization: Bearer {{tokenProf}}
+Content-Type: application/json
+
+{
+  "titre": "Collision creneau", "niveauCible": 3,
+  "jour": "WEDNESDAY", "heureDebut": "18:30:00",
+  "lieu": "Salle CallMe", "dureeMinutes": 60,
+  "dateDebut": "2026-07-15"
+}
+
+### 2.7  (ERREUR) Enseignant non apte -> 403  (prof.maya niv 4 tente un cours niveau 5)
+POST {{baseUrl}}/api/cours
+Authorization: Bearer {{tokenMaya}}
+Content-Type: application/json
+
+{
+  "titre": "Cours niveau 5 par Maya", "niveauCible": 5,
+  "jour": "FRIDAY", "heureDebut": "19:30:00",
+  "lieu": "Grande salle", "dureeMinutes": 90,
+  "dateDebut": "2026-07-10"
+}
+
+
+###############################################################################
+#  ACTE 3 - ENSEIGNANT : competitions
+###############################################################################
+
+### 3.1  Planifier une competition (date >= aujourd'hui+7)
+POST {{baseUrl}}/api/competitions
+Authorization: Bearer {{tokenProf}}
+Content-Type: application/json
+
+{
+  "titre": "Open demo", "niveauCible": 3,
+  "jour": "SUNDAY", "heureDebut": "14:00:00",
+  "lieu": "Gymnase demo", "dureeMinutes": 180,
+  "dateDebut": "2026-07-12"
+}
+
+### 3.2  Consulter une competition (id=8 = Challenge departemental)
+GET {{baseUrl}}/api/competitions/8
+Authorization: Bearer {{tokenProf}}
+
+### 3.3  Saisir le resultat d'un eleve (creation) : Sami (id=5) sur la compet 10
+PUT {{baseUrl}}/api/competitions/10/resultats/5
+Authorization: Bearer {{tokenProf}}
+Content-Type: application/json
+
+{ "note": 9.5 }
+
+### 3.4  Re-saisir le meme resultat (mise a jour SANS doublon)
+PUT {{baseUrl}}/api/competitions/10/resultats/5
+Authorization: Bearer {{tokenProf}}
+Content-Type: application/json
+
+{ "note": 8.0 }
+
+### 3.5  (ERREUR) Note hors bornes -> 400
+PUT {{baseUrl}}/api/competitions/10/resultats/5
+Authorization: Bearer {{tokenProf}}
+Content-Type: application/json
+
+{ "note": 12 }
+
+### 3.6  Resultats d'une competition (id=8)
+#  /!\ Cet endpoint a le bug hasRole('ENSEIGNANT','PRESIDENT') -> a corriger en hasAnyRole(...)
+GET {{baseUrl}}/api/competitions/8/resultats
+Authorization: Bearer {{tokenProf}}
+
+
+###############################################################################
+#  ACTE 4 - ELEVE : consultation de SES donnees
+###############################################################################
+
+### 4.1  Sami consulte son propre compte
+GET {{baseUrl}}/api/membres/5
+Authorization: Bearer {{tokenSami}}
+
+### 4.2  Sami consulte ses resultats de competition
+GET {{baseUrl}}/api/membres/5/competitions/resultats
+Authorization: Bearer {{tokenSami}}
+
+### 4.3  Sami consulte son historique de presences
+GET {{baseUrl}}/api/membres/5/historique
+Authorization: Bearer {{tokenSami}}
+
+### 4.4  (ERREUR) Sami tente de consulter un autre membre -> 403
+GET {{baseUrl}}/api/membres/9
+Authorization: Bearer {{tokenSami}}
+
+
+###############################################################################
+#  ACTE 5 - BADGEAGE (boitier, sans token)
+###############################################################################
+
+### 5.1  Sami badge -> presence enregistree sur le cours en cours (id=1)
+POST {{baseUrl}}/api/badges/badger
+Content-Type: application/json
+
+{ "numeroBadge": "BADGE-SAMI-001" }
+
+### 5.2  Sami rebadge -> 409 (deja present pour ce cours)
+POST {{baseUrl}}/api/badges/badger
+Content-Type: application/json
+
+{ "numeroBadge": "BADGE-SAMI-001" }
+
+### 5.3  (ERREUR) Badge inconnu -> 404
+POST {{baseUrl}}/api/badges/badger
+Content-Type: application/json
+
+{ "numeroBadge": "BADGE-INEXISTANT" }
+
+### 5.4  (ERREUR) Badge non associe a un membre -> 404
+POST {{baseUrl}}/api/badges/badger
+Content-Type: application/json
+
+{ "numeroBadge": "BADGE-LIBRE-000" }
+
+### 5.5  Verif : l'historique de Sami contient maintenant le cours en cours
+GET {{baseUrl}}/api/membres/5/historique
+Authorization: Bearer {{tokenSami}}
+
+
+###############################################################################
+#  ACTE 6 - PRESIDENT : statistiques (role PRESIDENT exclusif)
+###############################################################################
+
+### 6.1  Stats globales des cours (nombre + moyenne de presents)
+GET {{baseUrl}}/api/stats/cours
+Authorization: Bearer {{tokenPresident}}
+
+### 6.2  Presences / absences d'un eleve (Sami id=5)
+GET {{baseUrl}}/api/stats/membres/5/cours
+Authorization: Bearer {{tokenPresident}}
+
+### 6.3  Competitions d'un niveau (niveau 3)
+GET {{baseUrl}}/api/stats/competitions?niveauCible=3
+Authorization: Bearer {{tokenPresident}}
+
+### 6.4  Resultats d'un eleve en competition (Sami id=5)
+GET {{baseUrl}}/api/stats/membres/5/competitions
+Authorization: Bearer {{tokenPresident}}
+
+### 6.5  (ERREUR) Un eleve tente d'acceder aux stats -> 403
+GET {{baseUrl}}/api/stats/cours
+Authorization: Bearer {{tokenSami}}
