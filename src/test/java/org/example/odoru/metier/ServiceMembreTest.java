@@ -4,10 +4,7 @@ import org.example.odoru.dao.MembreRepository;
 import org.example.odoru.entities.EtatInscription;
 import org.example.odoru.entities.Membre;
 import org.example.odoru.entities.Role;
-import org.example.odoru.exceptions.EmailAlreadyExistException;
-import org.example.odoru.exceptions.MemberNotFoundException;
-import org.example.odoru.exceptions.NiveauInvalideException;
-import org.example.odoru.exceptions.UsernameAlreadyExistException;
+import org.example.odoru.exceptions.*;
 import org.example.odoru.export.MembreExport;
 import org.example.odoru.export.MembreImport;
 import org.junit.jupiter.api.Test;
@@ -103,6 +100,26 @@ class ServiceMembreTest {
     @Test
     void modifierNiveau_invalide_leve_Exception() {
         assertThrows(NiveauInvalideException.class, () -> serviceMembre.modifierNiveau(1L, 7));
+        verify(membreRepository, never()).save(any());
+    }
+
+    @Test
+    void modifierRole_valide_metAJour() {
+        Membre m = new Membre();
+        m.setId(1L);
+        m.setRole(Role.ELEVE);
+        when(membreRepository.findById(1L)).thenReturn(Optional.of(m));
+        when(membreRepository.save(any(Membre.class))).thenAnswer(i -> i.getArgument(0));
+
+        MembreExport export = serviceMembre.modifierRole(1L, Role.ENSEIGNANT);
+
+        assertEquals(Role.ENSEIGNANT, export.role());
+    }
+
+    @Test
+    void modifierRole_versPresident_leve_Exception() {
+        assertThrows(RoleInvalideException.class,
+                () -> serviceMembre.modifierRole(1L, Role.PRESIDENT));
         verify(membreRepository, never()).save(any());
     }
 }

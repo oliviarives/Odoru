@@ -125,4 +125,9 @@ public class GestionnaireExceptions {
     public ResponseEntity<ErrorExport> gereBadCredentials(BadCredentialException e) {
         return reponse(e, HttpStatus.UNAUTHORIZED);
     }
+
+    @ExceptionHandler(RoleInvalideException.class)
+    public ResponseEntity<ErrorExport> gereRoleInvalide(RoleInvalideException e) {
+        return reponse(e, HttpStatus.BAD_REQUEST);
+    }
 }

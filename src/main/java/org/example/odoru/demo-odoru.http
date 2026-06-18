@@ -1,7 +1,6 @@
 ###############################################################################
-#  DEMO ODORU - a executer dans IntelliJ (clic sur le triangle vert a gauche)
+#  DEMO ODORU
 #  Le token est capture automatiquement a chaque login et reutilise ensuite.
-#  Joue les blocs DANS L'ORDRE.  baseUrl = port de l'appli (9000).
 ###############################################################################
 @baseUrl = http://localhost:9000
 
@@ -126,6 +125,12 @@ Content-Type: application/json
 ### 1.9  Dissocier le badge d'Emma
 DELETE {{baseUrl}}/api/membres/14/badge
 Authorization: Bearer {{tokenSecretaire}}
+
+### 1.10 Promouvoir le membre 3 en enseignant
+PUT http://localhost:9000/api/membres/3/role
+Content-Type: application/json
+
+{ "role": "ENSEIGNANT" }
 
 
 ###############################################################################
@@ -317,3 +322,4 @@ Authorization: Bearer {{tokenPresident}}
 ### 6.5  (ERREUR) Un eleve tente d'acceder aux stats -> 403
 GET {{baseUrl}}/api/stats/cours
 Authorization: Bearer {{tokenSami}}
+

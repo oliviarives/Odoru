@@ -93,4 +93,10 @@ public class RestMembre {
         return servicePresence.consulterHistorique(id);
     }
 
+    @PutMapping("/{id}/role")
+    @PreAuthorize("hasAnyRole('SECRETAIRE','PRESIDENT')")
+    public MembreExport modifierRole(@PathVariable long id, @RequestBody RoleImport roleImport) {
+        return serviceMembre.modifierRole(id, roleImport.role());
+    }
+
 }

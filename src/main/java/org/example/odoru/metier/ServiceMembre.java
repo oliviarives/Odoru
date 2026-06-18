@@ -96,4 +96,15 @@ public class ServiceMembre {
             throw new NiveauInvalideException("Le niveau d'expertise doit être compris entre 1 et 5.");
         }
     }
+
+    public MembreExport modifierRole(long id, Role nouveauRole) {
+        // Règle métier : on ne peut pas promouvoir au rôle PRESIDENT
+        if (nouveauRole == Role.PRESIDENT) {
+            throw new RoleInvalideException("La promotion au rôle PRESIDENT n'est pas autorisée.");
+        }
+
+        Membre membre = recupererMembre(id);
+        membre.setRole(nouveauRole);
+        return MembreExport.depuis(membreRepository.save(membre));
+    }
 }
