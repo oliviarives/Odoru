@@ -53,7 +53,7 @@ public class RestCompetition {
     }
 
     @GetMapping("/{id}/resultats")
-    @PreAuthorize("hasRole('ENSEIGNANT','PRESIDENT')")
+    @PreAuthorize("hasAnyRole('ENSEIGNANT','PRESIDENT')")
     public List<ResultatExport> resultatsCompetition(@PathVariable long id) {
         return serviceCompetition.consulterResultatsCompetition(id);
     }
